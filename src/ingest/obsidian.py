@@ -2,6 +2,16 @@ from pathlib import Path
 import yaml
 import re
 from typing import List, Dict
+from dataclasses import dataclass
+
+
+@dataclass
+class NoteData:
+    title: str
+    path: str
+    frontmatter: Dict
+    tags: List[str]
+    content: str
 
 
 class ObsidianReader:
@@ -12,7 +22,7 @@ class ObsidianReader:
             raise FileNotFoundError(f"Vault path '{vault}' does not exist.")
         self._vault = vault
 
-    def read_all_vault_notes(self) -> List[Dict]:
+    def read_all_vault_notes(self) -> List[NoteData]:
         notes = []
         for md_file in self._vault.rglob("*.md"):
             if any(
@@ -25,33 +35,31 @@ class ObsidianReader:
 
         return notes
 
-    def _parse_note(self, md_file: Path) -> Dict:
-        note_data = {
-            "title": md_file.stem,
-            "path": str(md_file.relative_to(self._vault)),
-            "frontmatter": {},
-            "tags": [],
-            "content": "",
-        }
+    def _parse_note(self, md_file: Path) -> NoteData:
+        note_data = NoteData(
+            title=md_file.stem,
+            path=str(md_file.relative_to(self._vault)),
+            frontmatter={},
+            tags=[],
+            content="",
+        )
 
         full_content = md_file.read_text()
         if full_content.startswith("---"):
             note_parts = full_content.split("---", 2)
             if len(note_parts) >= 3:
                 try:
-                    note_data["frontmatter"] = yaml.safe_load(note_parts[1]) or {}
-                    note_data["content"] = note_parts[2]
+                    note_data.frontmatter = yaml.safe_load(note_parts[1]) or {}
+                    note_data.content = note_parts[2]
                 except yaml.YAMLError as err:
                     print(f"Couldn't parse frontmatter for '{md_file.stem}.md': {err}")
-                    note_data["content"] = full_content
+                    note_data.content = full_content
             else:
-                note_data["content"] = full_content
+                note_data.content = full_content
         else:
-            note_data["content"] = full_content
+            note_data.content = full_content
 
-        note_data["tags"] = self._parse_tags(
-            note_data["frontmatter"], note_data["content"]
-        )
+        note_data.tags = self._parse_tags(note_data.frontmatter, note_data.content)
 
         return note_data
 
@@ -73,4 +81,4 @@ if __name__ == "__main__":
     notes = reader.read_all_vault_notes()
     print(f"Found {len(notes)} notes")
     for note in notes[10:13]:
-        print(f"  - {note['title']} {len(note['content'])} chars, tags: {note['tags']}")
+        print(f"  - {note.title} {len(note.content)} chars, tags: {note.tags}")
