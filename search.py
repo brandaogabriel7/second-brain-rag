@@ -1,0 +1,90 @@
+import os
+from argparse import ArgumentParser
+
+from dotenv import load_dotenv
+
+from embeddings.embed import Embedder
+from ingest.chunker import Chunker
+from ingest.obsidian import ObsidianReader
+from query.retriever import Retriever
+from storage.vector_store import VectorStore
+
+from rich.console import Console
+from rich.table import Table
+from rich.progress import track
+
+load_dotenv()
+
+OBSIDIAN_VAULT_PATH = os.getenv("OBSIDIAN_VAULT_PATH", "")
+DEFAULT_TOP_K = 5
+INGEST_BATCH_SIZE = 100
+
+
+def get_retriever():
+    embedder = Embedder()
+    store = VectorStore()
+    return Retriever(embedder, store)
+
+
+def ingest():
+    obsidian_reader = ObsidianReader(OBSIDIAN_VAULT_PATH)
+    notes = obsidian_reader.read_all_vault_notes()
+
+    chunker = Chunker()
+    chunks = []
+    for note in notes:
+        chunks.extend(chunker.chunk_note(note))
+
+    retriever = get_retriever()
+    for i in track(
+        range(0, len(chunks), INGEST_BATCH_SIZE), description="Embedding..."
+    ):
+        chunk_batch = chunks[i : i + INGEST_BATCH_SIZE]
+        retriever.ingest(chunk_batch)
+
+
+def query(text: str, top_k: int):
+    retriever = get_retriever()
+    results = retriever.search(text, top_k)
+
+    console = Console()
+    table = Table(title="Search Results")
+    table.add_column("Note Title", style="cyan", no_wrap=True)
+    table.add_column("Heading", style="magenta")
+    table.add_column("Source", style="green")
+    table.add_column("Text", style="white")
+
+    for result in results:
+        table.add_row(
+            result["note_title"], result["heading"], result["source"], result["text"]
+        )
+
+    console.print(table)
+
+
+def main():
+    if not OBSIDIAN_VAULT_PATH:
+        print("Please set the OBSIDIAN_VAULT_PATH environment variable.")
+        return
+
+    parser = ArgumentParser(description="Search through your Second Brain.")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    subparsers.add_parser("ingest")
+
+    query_parser = subparsers.add_parser("query")
+    query_parser.add_argument("text", type=str)
+    query_parser.add_argument("--top-k", type=int, default=DEFAULT_TOP_K)
+
+    args = parser.parse_args()
+
+    if args.command == "ingest":
+        ingest()
+    elif args.command == "query":
+        query(args.text, args.top_k)
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()
