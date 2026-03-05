@@ -1,11 +1,13 @@
 import os
 from argparse import ArgumentParser
 
+from anthropic import Anthropic
 from dotenv import load_dotenv
 
 from embeddings.embed import Embedder
 from ingest.chunker import Chunker
 from ingest.obsidian import ObsidianReader
+from query.generator import Generator
 from query.retriever import Retriever
 from storage.vector_store import VectorStore
 
@@ -62,6 +64,23 @@ def query(text: str, top_k: int):
     console.print(table)
 
 
+def ask(text: str, top_k: int):
+    retriever = get_retriever()
+    generator = Generator(client=Anthropic())
+    console = Console()
+
+    chunks = retriever.search(text, top_k)
+
+    if not chunks:
+        console.print("[yellow]No relevant notes found.[/yellow]")
+        return
+
+    console.print()
+    for token in generator.generate_stream(text, chunks):
+        console.print(token, end="", highlight=False)
+    console.print()
+
+
 def main():
     if not OBSIDIAN_VAULT_PATH:
         print("Please set the OBSIDIAN_VAULT_PATH environment variable.")
@@ -76,12 +95,18 @@ def main():
     query_parser.add_argument("text", type=str)
     query_parser.add_argument("--top-k", type=int, default=DEFAULT_TOP_K)
 
+    ask_parser = subparsers.add_parser("ask")
+    ask_parser.add_argument("text", type=str)
+    ask_parser.add_argument("--top-k", type=int, default=DEFAULT_TOP_K)
+
     args = parser.parse_args()
 
     if args.command == "ingest":
         ingest()
     elif args.command == "query":
         query(args.text, args.top_k)
+    elif args.command == "ask":
+        ask(args.text, args.top_k)
     else:
         parser.print_help()
 
