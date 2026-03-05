@@ -18,13 +18,13 @@ class TestChunkDataclass:
         chunk = Chunk(
             text="hello",
             source="notes/test.md",
-            note_title="Test",
+            title="Test",
             heading="Intro",
             tags=["python"],
         )
         assert chunk.text == "hello"
         assert chunk.source == "notes/test.md"
-        assert chunk.note_title == "Test"
+        assert chunk.title == "Test"
         assert chunk.heading == "Intro"
         assert chunk.tags == ["python"]
 
@@ -112,7 +112,7 @@ class TestMetadataInheritance:
         note = make_note("Some text", title="My Great Note")
         chunker = Chunker()
         chunks = chunker.chunk_note(note)
-        assert chunks[0].note_title == "My Great Note"
+        assert chunks[0].title == "My Great Note"
 
     def test_chunks_inherit_tags(self):
         note = make_note("Some text", tags=["python", "rag"])
@@ -147,5 +147,5 @@ class TestEdgeCases:
         note2 = make_note("# B\nSecond", title="Note2", path="n2.md")
         chunks1 = chunker.chunk_note(note1)
         chunks2 = chunker.chunk_note(note2)
-        assert chunks1[0].note_title == "Note1"
-        assert chunks2[0].note_title == "Note2"
+        assert chunks1[0].title == "Note1"
+        assert chunks2[0].title == "Note2"

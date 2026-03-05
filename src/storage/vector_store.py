@@ -28,7 +28,7 @@ class VectorStore:
         metadatas = [
             {
                 "source": chunk.source,
-                "note_title": chunk.note_title,
+                "title": chunk.title,
                 "heading": chunk.heading,
                 "tags": ",".join(chunk.tags),
             }
@@ -68,7 +68,7 @@ class VectorStore:
                 {
                     "text": document,
                     "source": metadata.get("source", ""),
-                    "note_title": metadata.get("note_title", ""),
+                    "title": metadata.get("title", ""),
                     "heading": metadata.get("heading", ""),
                     "tags": metadata.get("tags", ""),
                     "distance": distance,

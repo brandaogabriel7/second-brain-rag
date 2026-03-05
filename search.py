@@ -54,14 +54,14 @@ def query(text: str, top_k: int):
 
     console = Console()
     table = Table(title="Search Results")
-    table.add_column("Note Title", style="cyan", no_wrap=True)
+    table.add_column("Title", style="cyan", no_wrap=True)
     table.add_column("Heading", style="magenta")
     table.add_column("Source", style="green")
     table.add_column("Text", style="white")
 
     for result in results:
         table.add_row(
-            result["note_title"], result["heading"], result["source"], result["text"]
+            result["title"], result["heading"], result["source"], result["text"]
         )
 
     console.print(table)

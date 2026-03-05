@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 import httpx
 
+from ingest.chunker import Chunk
+
 READWISE_BASE_URL = "https://readwise.io/api"
 
 
@@ -12,6 +14,7 @@ class Highlight:
     author: str
     category: str
     tags: list[str]
+    url: str
 
 
 class ReadwiseClient:
@@ -43,6 +46,7 @@ class ReadwiseClient:
                     author=result.get("author"),
                     category=result.get("category"),
                     tags=result.get("tags", []),
+                    url=result["url"],
                 )
                 for result in response_json.get("results", [])
             ]
@@ -50,3 +54,15 @@ class ReadwiseClient:
             next_cursor = response_json.get("nextPageCursor")
 
         return highlights
+
+
+def highlight_to_chunk(highlight: Highlight) -> Chunk:
+    return Chunk(
+        text=highlight.content,
+        source=highlight.url,
+        title=highlight.title,
+        heading="",
+        tags=highlight.tags,
+        category=highlight.category,
+        author=highlight.author,
+    )

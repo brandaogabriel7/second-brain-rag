@@ -16,7 +16,7 @@ def make_chunk(text="Some text", source="notes/test.md", title="Test Note",
     return Chunk(
         text=text,
         source=source,
-        note_title=title,
+        title=title,
         heading=heading,
         tags=tags or [],
     )
@@ -87,7 +87,7 @@ class TestMetadata:
         chunks = [make_chunk(title="My Note")]
         store.add_chunks(chunks, [fake_embedding()])
         results = store.search(fake_embedding(), top_k=1)
-        assert results[0]["note_title"] == "My Note"
+        assert results[0]["title"] == "My Note"
 
     def test_preserves_heading(self, store):
         chunks = [make_chunk(heading="Section One")]

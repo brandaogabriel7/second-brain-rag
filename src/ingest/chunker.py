@@ -9,7 +9,7 @@ from .obsidian import NoteData
 class Chunk:
     text: str
     source: str
-    note_title: str
+    title: str
     heading: str
     tags: List[str]
     author: Optional[str] = None
@@ -57,7 +57,7 @@ class Chunker:
                         Chunk(
                             text=chunk_text.strip(),
                             source=note.path,
-                            note_title=note.title,
+                            title=note.title,
                             heading=heading,
                             tags=note.tags,
                         )

@@ -1,7 +1,8 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from ingest.readwise import ReadwiseClient, Highlight
+from ingest.readwise import ReadwiseClient, Highlight, highlight_to_chunk
+from ingest.chunker import Chunk
 
 
 @pytest.fixture
@@ -24,6 +25,7 @@ def make_highlight(
     title="Book Title",
     author="Author Name",
     category="books",
+    url="https://readwise.io/open/123",
     tags=None,
 ):
     """Build a highlight dict matching Readwise API shape."""
@@ -33,6 +35,7 @@ def make_highlight(
         "title": title,
         "author": author,
         "category": category,
+        "url": url,
         "tags": tags or [],
     }
 
@@ -70,6 +73,7 @@ class TestFetchHighlights:
                     title="Atomic Habits",
                     author="James Clear",
                     category="books",
+                    url="https://readwise.io/open/456",
                     tags=["productivity", "habits"],
                 )
             ]
@@ -84,6 +88,7 @@ class TestFetchHighlights:
         assert h.title == "Atomic Habits"
         assert h.author == "James Clear"
         assert h.category == "books"
+        assert h.url == "https://readwise.io/open/456"
         assert h.tags == ["productivity", "habits"]
 
     def test_handles_empty_results(self, mock_httpx):
@@ -133,3 +138,69 @@ class TestPagination:
         assert second_call.kwargs["params"]["pageCursor"] == "abc123"
 
 
+class TestHighlightToChunk:
+    def test_converts_highlight_to_chunk(self):
+        highlight = Highlight(
+            id="abc123",
+            content="This is the highlight text",
+            title="Deep Work",
+            author="Cal Newport",
+            category="books",
+            url="https://readwise.io/open/abc123",
+            tags=["focus", "productivity"],
+        )
+
+        chunk = highlight_to_chunk(highlight)
+
+        assert isinstance(chunk, Chunk)
+        assert chunk.text == "This is the highlight text"
+        assert chunk.title == "Deep Work"
+        assert chunk.author == "Cal Newport"
+        assert chunk.category == "books"
+        assert chunk.tags == ["focus", "productivity"]
+
+    def test_uses_readwise_url_as_source(self):
+        highlight = Highlight(
+            id="xyz789",
+            content="text",
+            title="Title",
+            author="Author",
+            category="articles",
+            url="https://readwise.io/open/xyz789",
+            tags=[],
+        )
+
+        chunk = highlight_to_chunk(highlight)
+
+        assert chunk.source == "https://readwise.io/open/xyz789"
+
+    def test_sets_heading_to_empty_string(self):
+        highlight = Highlight(
+            id="123",
+            content="text",
+            title="Title",
+            author="Author",
+            category="books",
+            url="https://readwise.io/open/123",
+            tags=[],
+        )
+
+        chunk = highlight_to_chunk(highlight)
+
+        assert chunk.heading == ""
+
+    def test_handles_none_author_and_category(self):
+        highlight = Highlight(
+            id="123",
+            content="text",
+            title="Title",
+            author=None,
+            category=None,
+            url="https://readwise.io/open/123",
+            tags=[],
+        )
+
+        chunk = highlight_to_chunk(highlight)
+
+        assert chunk.author is None
+        assert chunk.category is None

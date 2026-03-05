@@ -7,7 +7,7 @@ from query.generator import Generator
 def make_search_result(
     text="Some content",
     source="notes/test.md",
-    note_title="Test Note",
+    title="Test Note",
     heading="Introduction",
     tags="",
     distance=0.1,
@@ -15,7 +15,7 @@ def make_search_result(
     return {
         "text": text,
         "source": source,
-        "note_title": note_title,
+        "title": title,
         "heading": heading,
         "tags": tags,
         "distance": distance,
