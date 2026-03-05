@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import re
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from .obsidian import NoteData
 
@@ -12,6 +12,8 @@ class Chunk:
     note_title: str
     heading: str
     tags: List[str]
+    author: Optional[str] = None
+    category: Optional[str] = None
 
 
 class Chunker:

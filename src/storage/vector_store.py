@@ -42,6 +42,12 @@ class VectorStore:
             embeddings=embeddings,  # type: ignore
         )
 
+    def reset(self) -> None:
+        self._client.delete_collection(name=self._collection.name)
+        self._collection = self._client.get_or_create_collection(
+            name=self._collection.name, metadata={"hnsw:space": "cosine"}
+        )
+
     def search(self, embedding: List[float], top_k: int):
         if not embedding or len(embedding) == 0:
             return []

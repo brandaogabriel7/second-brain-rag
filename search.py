@@ -29,6 +29,9 @@ def get_retriever():
 
 
 def ingest():
+    store = VectorStore()
+    store.reset()
+
     obsidian_reader = ObsidianReader(OBSIDIAN_VAULT_PATH)
     notes = obsidian_reader.read_all_vault_notes()
 
@@ -37,7 +40,7 @@ def ingest():
     for note in notes:
         chunks.extend(chunker.chunk_note(note))
 
-    retriever = get_retriever()
+    retriever = Retriever(Embedder(), store)
     for i in track(
         range(0, len(chunks), INGEST_BATCH_SIZE), description="Embedding..."
     ):
