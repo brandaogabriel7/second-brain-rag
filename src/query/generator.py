@@ -76,8 +76,8 @@ class Generator:
         if not chunks:
             return ""
 
-        summary = "\n\nSources:\n"
+        summary = "\n\n## Sources\n\n"
         for index, chunk in enumerate(chunks):
-            summary += f"[{index + 1}] {self._format_source(chunk)}\n"
+            summary += f"- [{index + 1}] {self._format_source(chunk)}\n"
 
         return summary

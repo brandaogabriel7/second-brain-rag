@@ -44,8 +44,8 @@ class TestGenerate:
         chunks = [make_search_result(title="Test Note", source="notes/test.md", heading="Introduction", category="notes")]
         result = generator.generate("What is RAG?", chunks)
         assert "This is the answer." in result
-        assert "Sources:" in result
-        assert "[1] Test Note | Introduction | notes | notes/test.md" in result
+        assert "## Sources" in result
+        assert "- [1] Test Note | Introduction | notes | notes/test.md" in result
 
     def test_calls_client_with_messages(self, generator, mock_client):
         chunks = [make_search_result(text="RAG is retrieval augmented generation")]
@@ -188,8 +188,8 @@ class TestGenerateStream:
         assert result[0] == "This "
         assert result[1] == "is "
         assert result[2] == "streamed."
-        assert "Sources:" in result[3]
-        assert "[1] Test Note | Introduction | notes | notes/test.md" in result[3]
+        assert "## Sources" in result[3]
+        assert "- [1] Test Note | Introduction | notes | notes/test.md" in result[3]
 
     def test_calls_stream_method(self, streaming_client):
         generator = Generator(client=streaming_client)

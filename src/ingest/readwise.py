@@ -1,9 +1,13 @@
+import logging
+import time
 from dataclasses import dataclass
 from functools import wraps
+
 import httpx
-import time
 
 from ingest.chunker import Chunk
+
+logger = logging.getLogger(__name__)
 
 READWISE_BASE_URL = "https://readwise.io/api"
 
@@ -36,9 +40,9 @@ def retry_with_backoff(max_retries=5, default_backoff=1.0):
                         sleep_time = int(retry_after)
                     else:
                         sleep_time = default_backoff * (2 ** (retries - 1))
-                    print(f"Rate limited. Retrying in {sleep_time} seconds...")
+                    logger.warning(f"Rate limited. Retrying in {sleep_time}s (attempt {retries}/{max_retries})...")
                     time.sleep(sleep_time)
-            print(f"Failed after {max_retries} retries. Returning partial results.")
+            logger.error(f"Failed after {max_retries} retries. Returning partial results.")
             return None
 
         return wrapper
@@ -57,11 +61,13 @@ class ReadwiseClient:
         next_cursor = ""
         highlights = []
         is_first_request = True
+        page = 0
 
         while next_cursor is not None:
             if not is_first_request:
                 time.sleep(REQUEST_DELAY)
             is_first_request = False
+            page += 1
 
             result = self._fetch_highlights_page(next_cursor)
 
@@ -70,6 +76,7 @@ class ReadwiseClient:
 
             highlights_page, next_cursor = result
             highlights.extend(highlights_page)
+            logger.info(f"Page {page}: fetched {len(highlights_page)} highlights ({len(highlights)} total)")
 
         return highlights
 

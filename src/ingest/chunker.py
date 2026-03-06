@@ -1,8 +1,11 @@
-from dataclasses import dataclass
+import logging
 import re
+from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 from .obsidian import NoteData
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -24,6 +27,7 @@ class Chunker:
     def chunk_note(self, note: NoteData) -> List[Chunk]:
         tuples = self._split_headings(note)
         chunks = self._split_large_chunks(note, tuples)
+        logger.debug(f"Chunked '{note.title}' into {len(chunks)} chunks")
         return chunks
 
     def _split_headings(self, note: NoteData) -> List[Tuple[str, str]]:

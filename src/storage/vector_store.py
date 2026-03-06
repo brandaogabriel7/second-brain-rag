@@ -1,10 +1,13 @@
+import logging
+from pathlib import Path
 from typing import List
+
 from chromadb import PersistentClient
 from chromadb.api import ClientAPI
 
-from pathlib import Path
-
 from ingest.chunker import Chunk
+
+logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = (
     Path(__file__).resolve().parent.parent.parent
@@ -42,8 +45,10 @@ class VectorStore:
             metadatas=metadatas,  # type: ignore
             embeddings=embeddings,  # type: ignore
         )
+        logger.debug(f"Added {len(chunks)} chunks to collection")
 
     def reset(self) -> None:
+        logger.debug("Resetting vector store collection")
         self._client.delete_collection(name=self._collection.name)
         self._collection = self._client.get_or_create_collection(
             name=self._collection.name, metadata={"hnsw:space": "cosine"}

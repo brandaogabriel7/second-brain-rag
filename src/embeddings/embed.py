@@ -1,7 +1,11 @@
+import logging
 from typing import List
+
 from openai import OpenAI
 
 EMBEDDING_MODEL = "text-embedding-3-small"
+
+logger = logging.getLogger(__name__)
 
 
 class Embedder:
@@ -20,6 +24,7 @@ class Embedder:
         if len(texts) == 0:
             return []
 
+        logger.debug(f"Embedding batch of {len(texts)} texts")
         response = self._open_ai_client.embeddings.create(
             input=texts, model=EMBEDDING_MODEL
         )

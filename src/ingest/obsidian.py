@@ -1,8 +1,12 @@
-from pathlib import Path
-import yaml
+import logging
 import re
-from typing import List, Dict
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List
+
+import yaml
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -23,15 +27,23 @@ class ObsidianReader:
         self._vault = vault
 
     def read_all_vault_notes(self) -> List[NoteData]:
+        all_md_files = list(self._vault.rglob("*.md"))
+        logger.debug(f"Found {len(all_md_files)} markdown files in vault")
+
         notes = []
-        for md_file in self._vault.rglob("*.md"):
+        skipped = 0
+        for md_file in all_md_files:
             if any(
                 part.startswith(".") or part.startswith("_") or "Excalidraw" in part
                 for part in md_file.parts
             ):
+                skipped += 1
                 continue
 
             notes.append(self._parse_note(md_file))
+
+        if skipped > 0:
+            logger.debug(f"Skipped {skipped} files (hidden/excluded folders)")
 
         return notes
 
@@ -52,7 +64,7 @@ class ObsidianReader:
                     note_data.frontmatter = yaml.safe_load(note_parts[1]) or {}
                     note_data.content = note_parts[2]
                 except yaml.YAMLError as err:
-                    print(f"Couldn't parse frontmatter for '{md_file.stem}.md': {err}")
+                    logger.warning(f"Couldn't parse frontmatter for '{md_file.stem}.md': {err}")
                     note_data.content = full_content
             else:
                 note_data.content = full_content
