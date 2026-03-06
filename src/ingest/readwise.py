@@ -2,6 +2,7 @@ import logging
 import time
 from dataclasses import dataclass
 from functools import wraps
+from typing import Iterator
 
 import httpx
 
@@ -57,28 +58,22 @@ class ReadwiseClient:
     def __init__(self, token: str) -> None:
         self._token = token
 
-    def fetch_highlights(self) -> list[Highlight]:
+    def iter_highlight_pages(self) -> Iterator[list[Highlight]]:
+        """Yield each page of highlights for progress tracking."""
         next_cursor = ""
-        highlights = []
         is_first_request = True
-        page = 0
 
         while next_cursor is not None:
             if not is_first_request:
                 time.sleep(REQUEST_DELAY)
             is_first_request = False
-            page += 1
 
             result = self._fetch_highlights_page(next_cursor)
-
             if result is None:
                 break
 
             highlights_page, next_cursor = result
-            highlights.extend(highlights_page)
-            logger.info(f"Page {page}: fetched {len(highlights_page)} highlights ({len(highlights)} total)")
-
-        return highlights
+            yield highlights_page
 
     @retry_with_backoff()
     def _fetch_highlights_page(
@@ -103,7 +98,7 @@ class ReadwiseClient:
             for highlight in book.get("highlights", []):
                 # Tags in v2 are objects with "name" key
                 tags = [tag.get("name", "") for tag in highlight.get("tags", [])]
-                tags = [t for t in tags if t]  # filter empty
+                tags = [t for t in tags if t]
 
                 highlights.append(
                     Highlight(
