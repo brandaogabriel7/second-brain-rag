@@ -26,6 +26,13 @@ class ObsidianReader:
             raise FileNotFoundError(f"Vault path '{vault}' does not exist.")
         self._vault = vault
 
+    def _should_skip(self, path: Path) -> bool:
+        """Check if a file should be skipped (hidden, underscore-prefixed, or Excalidraw)."""
+        return any(
+            part.startswith(".") or part.startswith("_") or "Excalidraw" in part
+            for part in path.parts
+        )
+
     def read_all_vault_notes(self) -> List[NoteData]:
         all_md_files = list(self._vault.rglob("*.md"))
         logger.debug(f"Found {len(all_md_files)} markdown files in vault")
@@ -33,10 +40,7 @@ class ObsidianReader:
         notes = []
         skipped = 0
         for md_file in all_md_files:
-            if any(
-                part.startswith(".") or part.startswith("_") or "Excalidraw" in part
-                for part in md_file.parts
-            ):
+            if self._should_skip(md_file):
                 skipped += 1
                 continue
 
