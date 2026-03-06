@@ -2,20 +2,16 @@ import logging
 import sys
 from argparse import ArgumentParser
 
-from anthropic import Anthropic
 from rich.console import Console
 from rich.live import Live
 from rich.logging import RichHandler
 from rich.markdown import Markdown
 from rich.table import Table
 
-from config import Config, ConfigError, load_config
-from embeddings.embed import Embedder
+from config import ConfigError, load_config
+from context import AppContext, create_app_context
 from errors import CriticalError
 from ingest.pipeline import ingest
-from query.generator import Generator
-from query.retriever import Retriever
-from storage.vector_store import VectorStore
 
 console = Console()
 
@@ -34,21 +30,9 @@ logger = logging.getLogger(__name__)
 DEFAULT_TOP_K = 5
 
 
-def get_retriever(config: Config) -> Retriever:
-    embedder = Embedder(model=config.embedding_model)
-    store = VectorStore(path=config.chroma_path)
-    return Retriever(embedder, store)
-
-
-def query(config: Config, text: str, top_k: int):
+def query(ctx: AppContext, text: str, top_k: int):
     try:
-        retriever = get_retriever(config)
-    except Exception as e:
-        console.print(f"[red]Failed to initialize search: {e}[/red]")
-        return
-
-    try:
-        results = retriever.search(text, top_k)
+        results = ctx.retriever.search(text, top_k)
     except CriticalError as e:
         console.print(f"[red]Search failed: {e}[/red]")
         return
@@ -71,26 +55,9 @@ def query(config: Config, text: str, top_k: int):
     console.print(table)
 
 
-def ask(config: Config, text: str, top_k: int):
+def ask(ctx: AppContext, text: str, top_k: int):
     try:
-        retriever = get_retriever(config)
-    except Exception as e:
-        console.print(f"[red]Failed to initialize search: {e}[/red]")
-        return
-
-    try:
-        generator = Generator(
-            client=Anthropic(),
-            model=config.claude_model,
-            max_tokens=config.max_tokens,
-            system_prompt=config.system_prompt,
-        )
-    except Exception as e:
-        console.print(f"[red]Failed to initialize Claude client: {e}[/red]")
-        return
-
-    try:
-        chunks = retriever.search(text, top_k)
+        chunks = ctx.retriever.search(text, top_k)
     except CriticalError as e:
         console.print(f"[red]Search failed: {e}[/red]")
         return
@@ -106,7 +73,7 @@ def ask(config: Config, text: str, top_k: int):
     response = ""
     console.print()
     with Live(Markdown(response), console=console, refresh_per_second=10) as live:
-        for token in generator.generate_stream(text, chunks):
+        for token in ctx.generator.generate_stream(text, chunks):
             response += token
             live.update(Markdown(response))
     console.print()
@@ -156,9 +123,19 @@ def main():
             batch_size=config.batch_size,
         )
     elif args.command == "query":
-        query(config, args.text, args.top_k)
+        try:
+            ctx = create_app_context(config)
+        except Exception as e:
+            console.print(f"[red]Failed to initialize: {e}[/red]")
+            sys.exit(1)
+        query(ctx, args.text, args.top_k)
     elif args.command == "ask":
-        ask(config, args.text, args.top_k)
+        try:
+            ctx = create_app_context(config)
+        except Exception as e:
+            console.print(f"[red]Failed to initialize: {e}[/red]")
+            sys.exit(1)
+        ask(ctx, args.text, args.top_k)
     else:
         parser.print_help()
 
