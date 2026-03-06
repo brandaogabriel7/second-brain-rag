@@ -8,7 +8,7 @@ from rich.console import Console
 from rich.live import Live
 from rich.logging import RichHandler
 from rich.markdown import Markdown
-from rich.progress import track
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn, TimeRemainingColumn
 from rich.table import Table
 
 from embeddings.embed import Embedder
@@ -29,7 +29,7 @@ def configure_logging(verbose: bool = False):
     logging.basicConfig(
         level=level,
         format="%(message)s",
-        handlers=[RichHandler(rich_tracebacks=True, show_path=False)],
+        handlers=[RichHandler(console=console, rich_tracebacks=True, show_path=False)],
     )
 
 
@@ -48,33 +48,62 @@ def get_retriever():
 
 
 def ingest_obsidian() -> list[Chunk]:
-    logger.info("Reading Obsidian vault...")
-    obsidian_reader = ObsidianReader(OBSIDIAN_VAULT_PATH)
-    notes = obsidian_reader.read_all_vault_notes()
-    logger.info(f"Loaded {len(notes)} notes from vault")
-
-    logger.info("Chunking notes...")
+    console.print("[bold]Obsidian[/bold]")
+    reader = ObsidianReader(OBSIDIAN_VAULT_PATH)
     chunker = Chunker()
-    chunks = []
-    for note in notes:
-        chunks.extend(chunker.chunk_note(note))
-    logger.info(f"Created {len(chunks)} chunks from notes")
 
+    # Read all notes first (warnings may appear here)
+    logger.info("Reading notes from vault...")
+    notes = reader.read_all_vault_notes()
+    if not notes:
+        console.print("  No notes found")
+        return []
+
+    console.print(f"  Found {len(notes)} notes")
+    logger.info(f"Loaded {len(notes)} notes")
+
+    chunks = []
+    with Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        TimeRemainingColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("  Chunking...", total=len(notes))
+        for note in notes:
+            note_chunks = chunker.chunk_note(note)
+            logger.debug(f"Chunked '{note.title}' into {len(note_chunks)} chunks")
+            chunks.extend(note_chunks)
+            progress.advance(task)
+
+    console.print(f"  Created {len(chunks)} chunks")
     return chunks
 
 
 def ingest_readwise() -> list[Chunk]:
-    logger.info("Fetching Readwise highlights...")
-    readwise_client = ReadwiseClient(READWISE_TOKEN)
-    highlights = readwise_client.fetch_highlights()
-    logger.info(f"Fetched {len(highlights)} highlights from Readwise")
+    console.print("[bold]Readwise[/bold]")
+    client = ReadwiseClient(READWISE_TOKEN)
 
-    chunks = [highlight_to_chunk(highlight) for highlight in highlights]
-    return chunks
+    logger.info("Fetching highlights from Readwise API...")
+    highlights = []
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("  Fetching highlights...", total=None)
+        for page_num, page in enumerate(client.iter_highlight_pages(), 1):
+            highlights.extend(page)
+            logger.info(f"Page {page_num}: fetched {len(page)} highlights ({len(highlights)} total)")
+            progress.update(task, description=f"  Fetched {len(highlights)} highlights (page {page_num})")
+
+    console.print(f"  Fetched {len(highlights)} highlights")
+    return [highlight_to_chunk(h) for h in highlights]
 
 
 def ingest():
-    console.print("Starting ingestion...")
+    console.print("[bold]Starting ingestion...[/bold]\n")
     store = VectorStore()
     store.reset()
 
@@ -82,29 +111,41 @@ def ingest():
     if OBSIDIAN_VAULT_PATH:
         chunks.extend(ingest_obsidian())
     else:
-        logger.warning("OBSIDIAN_VAULT_PATH not set. Skipping Obsidian ingestion.")
+        console.print("[dim]Obsidian: OBSIDIAN_VAULT_PATH not set, skipping[/dim]")
 
     if READWISE_TOKEN:
         chunks.extend(ingest_readwise())
     else:
-        logger.warning("READWISE_TOKEN not set. Skipping Readwise ingestion.")
+        console.print("[dim]Readwise: READWISE_TOKEN not set, skipping[/dim]")
 
-    # Filter out empty chunks
     original_count = len(chunks)
     chunks = [c for c in chunks if c.text and c.text.strip()]
     if original_count != len(chunks):
-        logger.info(f"Filtered out {original_count - len(chunks)} empty chunks")
+        console.print(f"[dim]Filtered {original_count - len(chunks)} empty chunks[/dim]")
 
-    logger.info(f"Embedding and storing {len(chunks)} chunks...")
+    console.print(f"\n[bold]Embedding[/bold]")
+    console.print(f"  Processing {len(chunks)} chunks")
 
+    logger.info(f"Embedding {len(chunks)} chunks in batches of {INGEST_BATCH_SIZE}")
     retriever = Retriever(Embedder(), store)
-    for i in track(
-        range(0, len(chunks), INGEST_BATCH_SIZE), description="Embedding..."
-    ):
-        chunk_batch = chunks[i : i + INGEST_BATCH_SIZE]
-        retriever.ingest(chunk_batch)
+    batch_count = (len(chunks) + INGEST_BATCH_SIZE - 1) // INGEST_BATCH_SIZE
 
-    console.print(f"Done! Ingested {len(chunks)} chunks.")
+    with Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        TimeRemainingColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("  Embedding...", total=batch_count)
+        for i in range(0, len(chunks), INGEST_BATCH_SIZE):
+            batch_num = i // INGEST_BATCH_SIZE + 1
+            chunk_batch = chunks[i : i + INGEST_BATCH_SIZE]
+            logger.info(f"Embedding batch {batch_num}/{batch_count} ({len(chunk_batch)} chunks)")
+            retriever.ingest(chunk_batch)
+            progress.advance(task)
+
+    console.print(f"\n[bold green]Done![/bold green] Ingested {len(chunks)} chunks.")
 
 
 def query(text: str, top_k: int):

@@ -9,9 +9,7 @@ from ingest.chunker import Chunk
 
 logger = logging.getLogger(__name__)
 
-PROJECT_ROOT = (
-    Path(__file__).resolve().parent.parent.parent
-)  # src/storage/vector_store.py → project root
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DEFAULT_CHROMA_PATH = str(PROJECT_ROOT / "data" / "chroma")
 
 
