@@ -60,6 +60,7 @@ class Chunker:
                             title=note.title,
                             heading=heading,
                             tags=note.tags,
+                            category="notes",
                         )
                     )
 

@@ -5,8 +5,9 @@ from anthropic import Anthropic
 from dotenv import load_dotenv
 
 from embeddings.embed import Embedder
-from ingest.chunker import Chunker
+from ingest.chunker import Chunk, Chunker
 from ingest.obsidian import ObsidianReader
+from ingest.readwise import ReadwiseClient, highlight_to_chunk
 from query.generator import Generator
 from query.retriever import Retriever
 from storage.vector_store import VectorStore
@@ -18,6 +19,7 @@ from rich.progress import track
 load_dotenv()
 
 OBSIDIAN_VAULT_PATH = os.getenv("OBSIDIAN_VAULT_PATH", "")
+READWISE_TOKEN = os.getenv("READWISE_TOKEN", "")
 DEFAULT_TOP_K = 5
 INGEST_BATCH_SIZE = 100
 
@@ -28,10 +30,7 @@ def get_retriever():
     return Retriever(embedder, store)
 
 
-def ingest():
-    store = VectorStore()
-    store.reset()
-
+def ingest_obsidian() -> list[Chunk]:
     obsidian_reader = ObsidianReader(OBSIDIAN_VAULT_PATH)
     notes = obsidian_reader.read_all_vault_notes()
 
@@ -39,6 +38,40 @@ def ingest():
     chunks = []
     for note in notes:
         chunks.extend(chunker.chunk_note(note))
+
+    return chunks
+
+
+def ingest_readwise() -> list[Chunk]:
+    readwise_client = ReadwiseClient(READWISE_TOKEN)
+    highlights = readwise_client.fetch_highlights()
+    chunks = [highlight_to_chunk(highlight) for highlight in highlights]
+
+    return chunks
+
+
+def ingest():
+    store = VectorStore()
+    store.reset()
+    console = Console()
+
+    chunks = []
+    if OBSIDIAN_VAULT_PATH:
+        chunks.extend(ingest_obsidian())
+    else:
+        console.print(
+            "[yellow]OBSIDIAN_VAULT_PATH not set. Skipping Obsidian ingestion.[/yellow]"
+        )
+
+    if READWISE_TOKEN:
+        chunks.extend(ingest_readwise())
+    else:
+        console.print(
+            "[yellow]READWISE_TOKEN not set. Skipping Readwise ingestion.[/yellow]"
+        )
+
+    # Filter out empty chunks
+    chunks = [c for c in chunks if c.text and c.text.strip()]
 
     retriever = Retriever(Embedder(), store)
     for i in track(
@@ -85,8 +118,10 @@ def ask(text: str, top_k: int):
 
 
 def main():
-    if not OBSIDIAN_VAULT_PATH:
-        print("Please set the OBSIDIAN_VAULT_PATH environment variable.")
+    if not OBSIDIAN_VAULT_PATH and not READWISE_TOKEN:
+        print(
+            "Please set either OBSIDIAN_VAULT_PATH or READWISE_TOKEN environment variable to ingest data."
+        )
         return
 
     parser = ArgumentParser(description="Search through your Second Brain.")

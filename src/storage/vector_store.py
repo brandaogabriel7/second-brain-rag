@@ -27,10 +27,11 @@ class VectorStore:
         documents = [chunk.text for chunk in chunks]
         metadatas = [
             {
-                "source": chunk.source,
-                "title": chunk.title,
-                "heading": chunk.heading,
-                "tags": ",".join(chunk.tags),
+                "source": chunk.source or "",
+                "title": chunk.title or "",
+                "heading": chunk.heading or "",
+                "tags": ",".join(chunk.tags) if chunk.tags else "",
+                "category": chunk.category or "",
             }
             for chunk in chunks
         ]
@@ -71,6 +72,7 @@ class VectorStore:
                     "title": metadata.get("title", ""),
                     "heading": metadata.get("heading", ""),
                     "tags": metadata.get("tags", ""),
+                    "category": metadata.get("category", ""),
                     "distance": distance,
                 }
             )

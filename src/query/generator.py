@@ -53,13 +53,22 @@ class Generator:
         if sources_summary:
             yield sources_summary
 
+    def _format_source(self, chunk: dict) -> str:
+        parts = []
+        if chunk.get("title"):
+            parts.append(chunk["title"])
+        if chunk.get("heading"):
+            parts.append(chunk["heading"])
+        if chunk.get("category"):
+            parts.append(chunk["category"])
+        if chunk.get("source"):
+            parts.append(chunk["source"])
+        return " | ".join(parts)
+
     def _build_context(self, chunks: list[dict]) -> str:
         context = ""
         for index, chunk in enumerate(chunks):
-            context += f"[{index + 1}] {chunk['source']}"
-            if chunk["heading"]:
-                context += f" | {chunk['heading']}"
-            context += f"\n{chunk['text']}\n\n"
+            context += f"[{index + 1}] {self._format_source(chunk)}\n{chunk['text']}\n\n"
 
         return context
 
@@ -69,9 +78,6 @@ class Generator:
 
         summary = "\n\nSources:\n"
         for index, chunk in enumerate(chunks):
-            summary += f"[{index + 1}] {chunk['source']}"
-            if chunk["heading"]:
-                summary += f" | {chunk['heading']}"
-            summary += "\n"
+            summary += f"[{index + 1}] {self._format_source(chunk)}\n"
 
         return summary

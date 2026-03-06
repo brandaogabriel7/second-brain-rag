@@ -28,6 +28,35 @@ class TestChunkDataclass:
         assert chunk.heading == "Intro"
         assert chunk.tags == ["python"]
 
+    def test_chunk_with_all_fields(self):
+        chunk = Chunk(
+            text="Focus is the key to productivity",
+            source="https://readwise.io/open/123",
+            title="Deep Work",
+            heading="",
+            tags=["productivity", "focus"],
+            author="Cal Newport",
+            category="books",
+        )
+        assert chunk.text == "Focus is the key to productivity"
+        assert chunk.source == "https://readwise.io/open/123"
+        assert chunk.title == "Deep Work"
+        assert chunk.heading == ""
+        assert chunk.tags == ["productivity", "focus"]
+        assert chunk.author == "Cal Newport"
+        assert chunk.category == "books"
+
+    def test_chunk_optional_fields_default_to_none(self):
+        chunk = Chunk(
+            text="hello",
+            source="notes/test.md",
+            title="Test",
+            heading="Intro",
+            tags=[],
+        )
+        assert chunk.author is None
+        assert chunk.category is None
+
 
 class TestHeadingSplit:
     def test_single_section_no_headings(self):
@@ -119,6 +148,12 @@ class TestMetadataInheritance:
         chunker = Chunker()
         chunks = chunker.chunk_note(note)
         assert chunks[0].tags == ["python", "rag"]
+
+    def test_chunks_have_notes_category(self):
+        note = make_note("Some text")
+        chunker = Chunker()
+        chunks = chunker.chunk_note(note)
+        assert chunks[0].category == "notes"
 
 
 class TestEdgeCases:
