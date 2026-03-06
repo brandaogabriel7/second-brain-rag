@@ -105,6 +105,12 @@ def main():
         console.print(f"[red]Configuration error: {e}[/red]")
         sys.exit(1)
 
+    try:
+        ctx = create_app_context(config)
+    except Exception as e:
+        console.print(f"[red]Failed to initialize: {e}[/red]")
+        sys.exit(1)
+
     if args.command == "ingest":
         if not config.obsidian_vault_path and not config.readwise_token:
             console.print(
@@ -115,26 +121,16 @@ def main():
 
         ingest(
             console,
-            chroma_path=config.chroma_path,
-            embedding_model=config.embedding_model,
+            embedder=ctx.embedder,
+            vector_store=ctx.vector_store,
             vault_path=config.obsidian_vault_path or "",
             readwise_token=config.readwise_token or "",
             request_delay=config.request_delay,
             batch_size=config.batch_size,
         )
     elif args.command == "query":
-        try:
-            ctx = create_app_context(config)
-        except Exception as e:
-            console.print(f"[red]Failed to initialize: {e}[/red]")
-            sys.exit(1)
         query(ctx, args.text, args.top_k)
     elif args.command == "ask":
-        try:
-            ctx = create_app_context(config)
-        except Exception as e:
-            console.print(f"[red]Failed to initialize: {e}[/red]")
-            sys.exit(1)
         ask(ctx, args.text, args.top_k)
     else:
         parser.print_help()

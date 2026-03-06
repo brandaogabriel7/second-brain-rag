@@ -99,8 +99,8 @@ def ingest_readwise(
 
 def ingest(
     console: Console,
-    chroma_path: str,
-    embedding_model: str,
+    embedder: Embedder,
+    vector_store: VectorStore,
     vault_path: str = "",
     readwise_token: str = "",
     request_delay: float = 3.0,
@@ -120,8 +120,7 @@ def ingest(
     console.print("[bold]Starting ingestion...[/bold]\n")
     collector = ErrorCollector()
 
-    store = VectorStore(path=chroma_path)
-    store.reset()
+    vector_store.reset()
 
     chunks: list[Chunk] = []
 
@@ -175,7 +174,6 @@ def ingest(
     console.print(f"  Processing {len(chunks)} chunks")
 
     logger.info(f"Embedding {len(chunks)} chunks in batches of {batch_size}")
-    embedder = Embedder(model=embedding_model)
 
     embedded_count = 0
     failed_batches = 0
@@ -199,7 +197,7 @@ def ingest(
             try:
                 texts = [c.text for c in chunk_batch]
                 embeddings = embedder.embed_batch(texts)
-                store.add_chunks(chunk_batch, embeddings)
+                vector_store.add_chunks(chunk_batch, embeddings)
                 embedded_count += len(chunk_batch)
             except EmbeddingError as e:
                 collector.add(e)
