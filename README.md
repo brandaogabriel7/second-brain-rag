@@ -34,7 +34,25 @@ cp .env.example .env
 
 ```
 OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
 OBSIDIAN_VAULT_PATH=/path/to/your/vault
+READWISE_TOKEN=...  # optional
+```
+
+## Usage
+
+```bash
+# Ingest your data (run once, or when content changes)
+uv run python search.py ingest
+
+# Ask a question (uses Claude to generate an answer)
+uv run python search.py ask "What are my notes about productivity?"
+
+# Search without AI generation (returns raw chunks)
+uv run python search.py query "productivity"
+
+# Verbose mode (detailed logging)
+uv run python search.py -v ingest
 ```
 
 ## Development
@@ -48,9 +66,10 @@ uv run pytest -v
 
 ```
 src/
-  ingest/          # Data ingestion (Obsidian reader, chunker)
+  ingest/          # Data ingestion (Obsidian, Readwise, chunker)
   embeddings/      # Embedding wrapper (OpenAI)
   storage/         # Vector store (ChromaDB)
-  query/           # Retrieval and generation
+  query/           # Retrieval and generation (Claude)
 tests/             # Automated tests
+search.py          # CLI entry point
 ```
