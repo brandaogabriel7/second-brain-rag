@@ -1,6 +1,5 @@
 import logging
 import re
-from typing import List
 
 from .models import Chunk, HeadingSection, ObsidianNote, ReadwiseHighlight
 
@@ -12,18 +11,23 @@ class Chunker:
         self._max_chunk_size = max_chunk_size
         self._overlap = overlap
 
-    def chunk_note(self, note: ObsidianNote) -> List[Chunk]:
+    def chunk_note(self, note: ObsidianNote) -> list[Chunk]:
+        """Split an Obsidian note into chunks for embedding.
+
+        First splits by markdown headings, then applies fixed-size chunking
+        with overlap for sections exceeding max_chunk_size.
+        """
         sections = self._split_headings(note)
         chunks = self._split_large_chunks(note, sections)
         logger.debug(f"Chunked '{note.title}' into {len(chunks)} chunks")
         return chunks
 
-    def _split_headings(self, note: ObsidianNote) -> List[HeadingSection]:
+    def _split_headings(self, note: ObsidianNote) -> list[HeadingSection]:
         parts = re.split(r"^(#{1,6})\s(.+)$", note.content, flags=re.MULTILINE)
 
         pre_heading = parts[0]
 
-        sections: List[HeadingSection] = (
+        sections: list[HeadingSection] = (
             [HeadingSection(heading="", text=pre_heading)]
             if pre_heading and pre_heading.strip()
             else []
@@ -39,8 +43,8 @@ class Chunker:
         return sections
 
     def _split_large_chunks(
-        self, note: ObsidianNote, sections: List[HeadingSection]
-    ) -> List[Chunk]:
+        self, note: ObsidianNote, sections: list[HeadingSection]
+    ) -> list[Chunk]:
         chunks = []
         step = self._max_chunk_size - self._overlap
         for section in sections:
@@ -62,6 +66,10 @@ class Chunker:
 
 
 def highlight_to_chunk(highlight: ReadwiseHighlight) -> Chunk:
+    """Convert a Readwise highlight to a Chunk.
+
+    Each highlight becomes a single chunk (no splitting needed).
+    """
     return Chunk(
         text=highlight.text,
         source=highlight.readwise_url,

@@ -17,6 +17,10 @@ class Generator:
         self._client = client
 
     def generate_stream(self, query: str, chunks: list[dict]) -> Iterator[str]:
+        """Generate a streaming answer using Claude with the given context chunks.
+
+        Yields text fragments as they arrive, followed by a sources summary.
+        """
         context = self._build_context(chunks)
         with self._client.messages.stream(
             model=MODEL,

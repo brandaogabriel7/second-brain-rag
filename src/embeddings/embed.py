@@ -1,5 +1,4 @@
 import logging
-from typing import List
 
 from openai import OpenAI
 
@@ -12,7 +11,8 @@ class Embedder:
     def __init__(self):
         self._open_ai_client = OpenAI()
 
-    def embed_query(self, text: str) -> List[float]:
+    def embed_query(self, text: str) -> list[float]:
+        """Generate an embedding vector for a single query string."""
         response = self._open_ai_client.embeddings.create(
             input=[text], model=EMBEDDING_MODEL
         )
@@ -20,7 +20,8 @@ class Embedder:
 
         return embedding.embedding
 
-    def embed_batch(self, texts: List[str]) -> List[List[float]]:
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        """Generate embedding vectors for multiple texts in one API call."""
         if len(texts) == 0:
             return []
 

@@ -1,7 +1,6 @@
 import logging
 import re
 from pathlib import Path
-from typing import Dict, List
 
 import yaml
 
@@ -25,7 +24,11 @@ class ObsidianReader:
             for part in path.parts
         )
 
-    def read_all_vault_notes(self) -> List[ObsidianNote]:
+    def read_all_vault_notes(self) -> list[ObsidianNote]:
+        """Read and parse all markdown notes from the vault.
+
+        Skips hidden files, underscore-prefixed paths, and Excalidraw drawings.
+        """
         all_md_files = list(self._vault.rglob("*.md"))
         logger.debug(f"Found {len(all_md_files)} markdown files in vault")
 
@@ -71,7 +74,7 @@ class ObsidianReader:
 
         return note_data
 
-    def _parse_tags(self, frontmatter: Dict, note_body: str) -> List[str]:
+    def _parse_tags(self, frontmatter: dict, note_body: str) -> list[str]:
         frontmatter_tags = frontmatter.get("tags", []) or []
         body_tags = re.findall(r"(?<=#)[^\s]*\b", note_body)
         return list(set(frontmatter_tags + body_tags))

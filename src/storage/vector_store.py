@@ -1,6 +1,5 @@
 import logging
 from pathlib import Path
-from typing import List
 
 from chromadb import PersistentClient
 from chromadb.api import ClientAPI
@@ -20,7 +19,8 @@ class VectorStore:
             name=collection_name, metadata={"hnsw:space": "cosine"}
         )
 
-    def add_chunks(self, chunks: List[Chunk], embeddings: List[List[float]]) -> None:
+    def add_chunks(self, chunks: list[Chunk], embeddings: list[list[float]]) -> None:
+        """Store chunks with their embeddings in the vector database."""
         if len(chunks) == 0 or len(embeddings) == 0:
             return
 
@@ -46,13 +46,19 @@ class VectorStore:
         logger.debug(f"Added {len(chunks)} chunks to collection")
 
     def reset(self) -> None:
+        """Delete all data and recreate the collection."""
         logger.debug("Resetting vector store collection")
         self._client.delete_collection(name=self._collection.name)
         self._collection = self._client.get_or_create_collection(
             name=self._collection.name, metadata={"hnsw:space": "cosine"}
         )
 
-    def search(self, embedding: List[float], top_k: int):
+    def search(self, embedding: list[float], top_k: int) -> list[dict]:
+        """Find the most similar chunks to the given embedding.
+
+        Returns:
+            List of dicts with text, source, title, heading, tags, category, distance.
+        """
         if not embedding or len(embedding) == 0:
             return []
 

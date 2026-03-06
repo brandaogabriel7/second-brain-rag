@@ -24,6 +24,7 @@ DEFAULT_BATCH_SIZE = 100
 
 
 def ingest_obsidian(console: Console, vault_path: str) -> list[Chunk]:
+    """Read and chunk all notes from an Obsidian vault."""
     console.print("[bold]Obsidian[/bold]")
     reader = ObsidianReader(vault_path)
     chunker = Chunker()
@@ -57,6 +58,7 @@ def ingest_obsidian(console: Console, vault_path: str) -> list[Chunk]:
 
 
 def ingest_readwise(console: Console, token: str) -> list[Chunk]:
+    """Fetch all highlights from Readwise and convert to chunks."""
     console.print("[bold]Readwise[/bold]")
     client = ReadwiseClient(token)
 
@@ -70,8 +72,13 @@ def ingest_readwise(console: Console, token: str) -> list[Chunk]:
         task = progress.add_task("  Fetching highlights...", total=None)
         for page_num, page in enumerate(client.iter_highlight_pages(), 1):
             highlights.extend(page)
-            logger.info(f"Page {page_num}: fetched {len(page)} highlights ({len(highlights)} total)")
-            progress.update(task, description=f"  Fetched {len(highlights)} highlights (page {page_num})")
+            logger.info(
+                f"Page {page_num}: fetched {len(page)} highlights ({len(highlights)} total)"
+            )
+            progress.update(
+                task,
+                description=f"  Fetched {len(highlights)} highlights (page {page_num})",
+            )
 
     console.print(f"  Fetched {len(highlights)} highlights")
     return [highlight_to_chunk(h) for h in highlights]
@@ -83,6 +90,11 @@ def ingest(
     readwise_token: str = "",
     batch_size: int = DEFAULT_BATCH_SIZE,
 ) -> None:
+    """Run the full ingestion pipeline.
+
+    Reads from configured sources (Obsidian, Readwise), chunks the content,
+    embeds it, and stores in the vector database. Resets the store first.
+    """
     console.print("[bold]Starting ingestion...[/bold]\n")
     store = VectorStore()
     store.reset()
@@ -101,9 +113,11 @@ def ingest(
     original_count = len(chunks)
     chunks = [c for c in chunks if c.text and c.text.strip()]
     if original_count != len(chunks):
-        console.print(f"[dim]Filtered {original_count - len(chunks)} empty chunks[/dim]")
+        console.print(
+            f"[dim]Filtered {original_count - len(chunks)} empty chunks[/dim]"
+        )
 
-    console.print(f"\n[bold]Embedding[/bold]")
+    console.print("\n[bold]Embedding[/bold]")
     console.print(f"  Processing {len(chunks)} chunks")
 
     logger.info(f"Embedding {len(chunks)} chunks in batches of {batch_size}")
@@ -121,7 +135,9 @@ def ingest(
         for i in range(0, len(chunks), batch_size):
             batch_num = i // batch_size + 1
             chunk_batch = chunks[i : i + batch_size]
-            logger.info(f"Embedding batch {batch_num}/{batch_count} ({len(chunk_batch)} chunks)")
+            logger.info(
+                f"Embedding batch {batch_num}/{batch_count} ({len(chunk_batch)} chunks)"
+            )
             retriever.ingest(chunk_batch)
             progress.advance(task)
 
