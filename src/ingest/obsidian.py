@@ -9,7 +9,7 @@ import yaml
 
 from errors import FileReadError
 
-from .models import ObsidianNote
+from models import ObsidianNote
 
 if TYPE_CHECKING:
     from .error_collector import ErrorCollector

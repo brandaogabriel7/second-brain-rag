@@ -11,7 +11,7 @@ from errors import (
     ServiceUnavailableError,
 )
 
-from .models import ReadwiseHighlight
+from models import ReadwiseHighlight
 
 logger = logging.getLogger(__name__)
 

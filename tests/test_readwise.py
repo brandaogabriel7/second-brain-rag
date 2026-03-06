@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from ingest.chunker import highlight_to_chunk
-from ingest.models import Chunk, ReadwiseHighlight
+from models import Chunk, ReadwiseHighlight
 from ingest.readwise import ReadwiseClient
 
 

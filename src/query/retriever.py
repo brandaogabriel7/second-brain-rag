@@ -2,7 +2,7 @@ import logging
 
 from embeddings.embed import Embedder
 from errors import CriticalError
-from ingest.models import Chunk
+from models import Chunk
 from storage.vector_store import VectorStore
 
 logger = logging.getLogger(__name__)

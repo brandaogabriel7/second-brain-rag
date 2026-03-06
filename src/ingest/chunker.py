@@ -1,7 +1,7 @@
 import logging
 import re
 
-from .models import Chunk, HeadingSection, ObsidianNote, ReadwiseHighlight
+from models import Chunk, HeadingSection, ObsidianNote, ReadwiseHighlight
 
 logger = logging.getLogger(__name__)
 

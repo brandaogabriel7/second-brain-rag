@@ -14,7 +14,7 @@ from embeddings.embed import Embedder
 from errors import ChunkingError, CriticalError, EmbeddingError
 from ingest.chunker import Chunker, highlight_to_chunk
 from ingest.error_collector import ErrorCollector
-from ingest.models import Chunk
+from models import Chunk
 from ingest.obsidian import ObsidianReader
 from ingest.readwise import ReadwiseClient
 from storage.vector_store import VectorStore

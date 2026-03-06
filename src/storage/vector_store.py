@@ -4,7 +4,7 @@ from pathlib import Path
 from chromadb import PersistentClient
 from chromadb.api import ClientAPI
 
-from ingest.models import Chunk
+from models import Chunk
 
 logger = logging.getLogger(__name__)
 

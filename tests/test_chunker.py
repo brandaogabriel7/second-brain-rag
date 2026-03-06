@@ -1,6 +1,6 @@
 import pytest
 from ingest.chunker import Chunker
-from ingest.models import Chunk, ObsidianNote
+from models import Chunk, ObsidianNote
 
 
 def make_note(content, title="Test Note", path="test.md", tags=None):
