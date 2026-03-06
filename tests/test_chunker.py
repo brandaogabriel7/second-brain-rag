@@ -1,10 +1,10 @@
 import pytest
-from ingest.obsidian import NoteData
-from ingest.chunker import Chunker, Chunk
+from ingest.chunker import Chunker
+from ingest.models import Chunk, ObsidianNote
 
 
 def make_note(content, title="Test Note", path="test.md", tags=None):
-    return NoteData(
+    return ObsidianNote(
         title=title,
         path=path,
         frontmatter={},

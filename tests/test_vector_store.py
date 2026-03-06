@@ -1,6 +1,6 @@
 import chromadb
 import pytest
-from ingest.chunker import Chunk
+from ingest.models import Chunk
 from storage.vector_store import VectorStore
 
 

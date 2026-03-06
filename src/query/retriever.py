@@ -1,5 +1,5 @@
 from typing import Dict, List
-from ingest.chunker import Chunk
+from ingest.models import Chunk
 from storage.vector_store import VectorStore
 from embeddings.embed import Embedder
 

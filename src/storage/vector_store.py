@@ -5,7 +5,7 @@ from typing import List
 from chromadb import PersistentClient
 from chromadb.api import ClientAPI
 
-from ingest.chunker import Chunk
+from ingest.models import Chunk
 
 logger = logging.getLogger(__name__)
 

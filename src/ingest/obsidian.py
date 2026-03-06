@@ -1,21 +1,13 @@
 import logging
 import re
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
 
 import yaml
 
+from .models import ObsidianNote
+
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class NoteData:
-    title: str
-    path: str
-    frontmatter: Dict
-    tags: List[str]
-    content: str
 
 
 class ObsidianReader:
@@ -33,7 +25,7 @@ class ObsidianReader:
             for part in path.parts
         )
 
-    def read_all_vault_notes(self) -> List[NoteData]:
+    def read_all_vault_notes(self) -> List[ObsidianNote]:
         all_md_files = list(self._vault.rglob("*.md"))
         logger.debug(f"Found {len(all_md_files)} markdown files in vault")
 
@@ -51,8 +43,8 @@ class ObsidianReader:
 
         return notes
 
-    def _parse_note(self, md_file: Path) -> NoteData:
-        note_data = NoteData(
+    def _parse_note(self, md_file: Path) -> ObsidianNote:
+        note_data = ObsidianNote(
             title=md_file.stem,
             path=str(md_file.relative_to(self._vault)),
             frontmatter={},

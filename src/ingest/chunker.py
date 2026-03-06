@@ -1,22 +1,10 @@
 import logging
 import re
-from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import List
 
-from .obsidian import NoteData
+from .models import Chunk, HeadingSection, ObsidianNote, ReadwiseHighlight
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class Chunk:
-    text: str
-    source: str
-    title: str
-    heading: str
-    tags: List[str]
-    author: Optional[str] = None
-    category: Optional[str] = None
 
 
 class Chunker:
@@ -24,19 +12,21 @@ class Chunker:
         self._max_chunk_size = max_chunk_size
         self._overlap = overlap
 
-    def chunk_note(self, note: NoteData) -> List[Chunk]:
-        tuples = self._split_headings(note)
-        chunks = self._split_large_chunks(note, tuples)
+    def chunk_note(self, note: ObsidianNote) -> List[Chunk]:
+        sections = self._split_headings(note)
+        chunks = self._split_large_chunks(note, sections)
         logger.debug(f"Chunked '{note.title}' into {len(chunks)} chunks")
         return chunks
 
-    def _split_headings(self, note: NoteData) -> List[Tuple[str, str]]:
+    def _split_headings(self, note: ObsidianNote) -> List[HeadingSection]:
         parts = re.split(r"^(#{1,6})\s(.+)$", note.content, flags=re.MULTILINE)
 
         pre_heading = parts[0]
 
-        tuples: List[Tuple[str, str]] = (
-            [(pre_heading, "")] if pre_heading and pre_heading.strip() else []
+        sections: List[HeadingSection] = (
+            [HeadingSection(heading="", text=pre_heading)]
+            if pre_heading and pre_heading.strip()
+            else []
         )
 
         for i in range(1, len(parts), 3):
@@ -44,28 +34,40 @@ class Chunker:
             text = parts[i + 2]
 
             if text and text.strip():
-                tuples.append((text, heading))
+                sections.append(HeadingSection(heading=heading, text=text))
 
-        return tuples
+        return sections
 
     def _split_large_chunks(
-        self, note: NoteData, tuples: List[Tuple[str, str]]
+        self, note: ObsidianNote, sections: List[HeadingSection]
     ) -> List[Chunk]:
         chunks = []
         step = self._max_chunk_size - self._overlap
-        for text, heading in tuples:
-            for i in range(0, len(text), step):
-                chunk_text = text[i : i + self._max_chunk_size]
+        for section in sections:
+            for i in range(0, len(section.text), step):
+                chunk_text = section.text[i : i + self._max_chunk_size]
                 if chunk_text and chunk_text.strip():
                     chunks.append(
                         Chunk(
                             text=chunk_text.strip(),
                             source=note.path,
                             title=note.title,
-                            heading=heading,
+                            heading=section.heading,
                             tags=note.tags,
                             category="notes",
                         )
                     )
 
         return chunks
+
+
+def highlight_to_chunk(highlight: ReadwiseHighlight) -> Chunk:
+    return Chunk(
+        text=highlight.text,
+        source=highlight.readwise_url,
+        title=highlight.title,
+        heading="",
+        tags=highlight.tags,
+        category=highlight.category,
+        author=highlight.author,
+    )
