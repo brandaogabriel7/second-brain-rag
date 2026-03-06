@@ -1,6 +1,11 @@
+import logging
+
+from embeddings.embed import Embedder
+from errors import CriticalError
 from ingest.models import Chunk
 from storage.vector_store import VectorStore
-from embeddings.embed import Embedder
+
+logger = logging.getLogger(__name__)
 
 
 class Retriever:
@@ -12,10 +17,20 @@ class Retriever:
         """Find chunks semantically similar to the query.
 
         Embeds the query and searches the vector store for nearest neighbors.
+
+        Raises:
+            CriticalError: If embedding or search fails critically.
         """
-        embedding = self._embedder.embed_query(query)
-        results = self._store.search(embedding, top_k=top_k)
-        return results
+        try:
+            embedding = self._embedder.embed_query(query)
+            results = self._store.search(embedding, top_k=top_k)
+            return results
+        except CriticalError:
+            # Re-raise critical errors (auth failures, etc.)
+            raise
+        except Exception as e:
+            logger.error(f"Search failed: {e}")
+            raise
 
     def ingest(self, chunks: list[Chunk]) -> None:
         """Embed chunks and add them to the vector store."""

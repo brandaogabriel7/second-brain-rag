@@ -1,5 +1,14 @@
+import logging
 from typing import Iterator
-from anthropic import Anthropic
+
+from anthropic import (
+    APIConnectionError,
+    APIStatusError,
+    Anthropic,
+    AuthenticationError,
+)
+
+logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """
 You are a helpful assistant. Your job is to answer questions based only on my personal notes.
@@ -20,22 +29,37 @@ class Generator:
         """Generate a streaming answer using Claude with the given context chunks.
 
         Yields text fragments as they arrive, followed by a sources summary.
+        On error, yields an error message instead of crashing.
         """
         context = self._build_context(chunks)
-        with self._client.messages.stream(
-            model=MODEL,
-            max_tokens=MAX_TOKENS,
-            system=SYSTEM_PROMPT,
-            messages=[
-                {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {query}"}
-            ],
-        ) as stream:
-            for text in stream.text_stream:
-                yield text
+        try:
+            with self._client.messages.stream(
+                model=MODEL,
+                max_tokens=MAX_TOKENS,
+                system=SYSTEM_PROMPT,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f"Context:\n{context}\n\nQuestion: {query}",
+                    }
+                ],
+            ) as stream:
+                for text in stream.text_stream:
+                    yield text
 
-        sources_summary = self._summarize_sources(chunks)
-        if sources_summary:
-            yield sources_summary
+            sources_summary = self._summarize_sources(chunks)
+            if sources_summary:
+                yield sources_summary
+
+        except AuthenticationError:
+            logger.error("Claude API authentication failed")
+            yield "\n\n[Error: Claude API authentication failed. Check ANTHROPIC_API_KEY.]"
+        except APIConnectionError as e:
+            logger.error(f"Cannot connect to Claude API: {e}")
+            yield "\n\n[Error: Cannot connect to Claude API. Check your internet connection.]"
+        except APIStatusError as e:
+            logger.error(f"Claude API error: {e}")
+            yield f"\n\n[Error: Claude API error: {e.status_code}]"
 
     def _format_source(self, chunk: dict) -> str:
         parts = []

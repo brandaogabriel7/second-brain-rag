@@ -5,6 +5,12 @@ from typing import Iterator
 
 import httpx
 
+from errors import (
+    AuthenticationError,
+    RateLimitExhaustedError,
+    ServiceUnavailableError,
+)
+
 from .models import ReadwiseHighlight
 
 logger = logging.getLogger(__name__)
@@ -21,18 +27,54 @@ def retry_with_backoff(max_retries=5, default_backoff=1.0):
                 try:
                     return func(*args, **kwargs)
                 except httpx.HTTPStatusError as e:
-                    if e.response.status_code != 429:
-                        raise
-                    retries += 1
-                    retry_after = e.response.headers.get("Retry-After")
-                    if retry_after:
-                        sleep_time = int(retry_after)
-                    else:
-                        sleep_time = default_backoff * (2 ** (retries - 1))
-                    logger.warning(f"Rate limited. Retrying in {sleep_time}s (attempt {retries}/{max_retries})...")
-                    time.sleep(sleep_time)
-            logger.error(f"Failed after {max_retries} retries. Returning partial results.")
-            return None
+                    status = e.response.status_code
+
+                    # Critical: Auth failure - fail fast
+                    if status == 401:
+                        raise AuthenticationError(
+                            "Readwise authentication failed. Check READWISE_TOKEN."
+                        ) from e
+
+                    # Critical: Server errors - fail fast
+                    if status >= 500:
+                        raise ServiceUnavailableError(
+                            f"Readwise API returned {status}: {e.response.text}"
+                        ) from e
+
+                    # Retryable: Rate limit
+                    if status == 429:
+                        retries += 1
+                        retry_after = e.response.headers.get("Retry-After")
+                        if retry_after:
+                            sleep_time = int(retry_after)
+                        else:
+                            sleep_time = default_backoff * (2 ** (retries - 1))
+                        logger.warning(
+                            f"Rate limited. Retrying in {sleep_time}s "
+                            f"(attempt {retries}/{max_retries})..."
+                        )
+                        time.sleep(sleep_time)
+                        continue
+
+                    # Other client errors - fail fast
+                    raise ServiceUnavailableError(
+                        f"Readwise API error {status}: {e.response.text}"
+                    ) from e
+
+                except httpx.ConnectError as e:
+                    raise ServiceUnavailableError(
+                        f"Cannot connect to Readwise API: {e}"
+                    ) from e
+
+                except httpx.TimeoutException as e:
+                    raise ServiceUnavailableError(
+                        f"Readwise API timeout: {e}"
+                    ) from e
+
+            # Exhausted retries
+            raise RateLimitExhaustedError(
+                f"Readwise rate limit: failed after {max_retries} retries"
+            )
 
         return wrapper
 
@@ -47,7 +89,13 @@ class ReadwiseClient:
         self._token = token
 
     def iter_highlight_pages(self) -> Iterator[list[ReadwiseHighlight]]:
-        """Yield each page of highlights for progress tracking."""
+        """Yield each page of highlights for progress tracking.
+
+        Raises:
+            AuthenticationError: If token is invalid.
+            ServiceUnavailableError: If API is unavailable.
+            RateLimitExhaustedError: If rate limit retries exhausted.
+        """
         next_cursor = ""
         is_first_request = True
 
@@ -56,11 +104,7 @@ class ReadwiseClient:
                 time.sleep(REQUEST_DELAY)
             is_first_request = False
 
-            result = self._fetch_highlights_page(next_cursor)
-            if result is None:
-                break
-
-            highlights_page, next_cursor = result
+            highlights_page, next_cursor = self._fetch_highlights_page(next_cursor)
             yield highlights_page
 
     @retry_with_backoff()
@@ -75,7 +119,12 @@ class ReadwiseClient:
         )
         response.raise_for_status()
 
-        response_json = response.json()
+        try:
+            response_json = response.json()
+        except ValueError as e:
+            raise ServiceUnavailableError(
+                f"Readwise returned invalid JSON: {e}"
+            ) from e
 
         highlights = []
         for book in response_json.get("results", []):

@@ -37,13 +37,17 @@ class VectorStore:
             for chunk in chunks
         ]
 
-        self._collection.add(
-            ids=ids,
-            documents=documents,
-            metadatas=metadatas,  # type: ignore
-            embeddings=embeddings,  # type: ignore
-        )
-        logger.debug(f"Added {len(chunks)} chunks to collection")
+        try:
+            self._collection.add(
+                ids=ids,
+                documents=documents,
+                metadatas=metadatas,  # type: ignore
+                embeddings=embeddings,  # type: ignore
+            )
+            logger.debug(f"Added {len(chunks)} chunks to collection")
+        except Exception as e:
+            logger.error(f"Failed to add {len(chunks)} chunks to ChromaDB: {e}")
+            raise
 
     def reset(self) -> None:
         """Delete all data and recreate the collection."""
@@ -62,7 +66,12 @@ class VectorStore:
         if not embedding or len(embedding) == 0:
             return []
 
-        response = self._collection.query(query_embeddings=[embedding], n_results=top_k)
+        try:
+            response = self._collection.query(query_embeddings=[embedding], n_results=top_k)
+        except Exception as e:
+            logger.error(f"ChromaDB search failed: {e}")
+            raise
+
         documents = response.get("documents", [])
         metadatas = response.get("metadatas", [])
         distances = response.get("distances", [])

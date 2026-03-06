@@ -1,10 +1,18 @@
+from __future__ import annotations
+
 import logging
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import yaml
 
+from errors import FileReadError
+
 from .models import ObsidianNote
+
+if TYPE_CHECKING:
+    from .error_collector import ErrorCollector
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +32,14 @@ class ObsidianReader:
             for part in path.parts
         )
 
-    def read_all_vault_notes(self) -> list[ObsidianNote]:
+    def read_all_vault_notes(
+        self, collector: ErrorCollector | None = None
+    ) -> list[ObsidianNote]:
         """Read and parse all markdown notes from the vault.
 
         Skips hidden files, underscore-prefixed paths, and Excalidraw drawings.
+        Files that fail to read (encoding errors, permission issues) are skipped
+        and errors are collected if a collector is provided.
         """
         all_md_files = list(self._vault.rglob("*.md"))
         logger.debug(f"Found {len(all_md_files)} markdown files in vault")
@@ -39,7 +51,15 @@ class ObsidianReader:
                 skipped += 1
                 continue
 
-            notes.append(self._parse_note(md_file))
+            try:
+                notes.append(self._parse_note(md_file))
+            except (OSError, UnicodeDecodeError) as e:
+                error = FileReadError(str(md_file), e)
+                if collector:
+                    collector.add(error)
+                else:
+                    logger.warning(str(error))
+                # Continue to next file
 
         if skipped > 0:
             logger.debug(f"Skipped {skipped} files (hidden/excluded folders)")

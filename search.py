@@ -11,6 +11,7 @@ from rich.markdown import Markdown
 from rich.table import Table
 
 from embeddings.embed import Embedder
+from errors import CriticalError
 from ingest.pipeline import ingest
 from query.generator import Generator
 from query.retriever import Retriever
@@ -44,8 +45,21 @@ def get_retriever():
 
 
 def query(text: str, top_k: int):
-    retriever = get_retriever()
-    results = retriever.search(text, top_k)
+    try:
+        retriever = get_retriever()
+    except Exception as e:
+        console.print(f"[red]Failed to initialize search: {e}[/red]")
+        return
+
+    try:
+        results = retriever.search(text, top_k)
+    except CriticalError as e:
+        console.print(f"[red]Search failed: {e}[/red]")
+        return
+    except Exception as e:
+        console.print(f"[red]Search failed unexpectedly: {e}[/red]")
+        logger.exception("Search failed")
+        return
 
     table = Table(title="Search Results")
     table.add_column("Title", style="cyan", no_wrap=True)
@@ -62,10 +76,27 @@ def query(text: str, top_k: int):
 
 
 def ask(text: str, top_k: int):
-    retriever = get_retriever()
-    generator = Generator(client=Anthropic())
+    try:
+        retriever = get_retriever()
+    except Exception as e:
+        console.print(f"[red]Failed to initialize search: {e}[/red]")
+        return
 
-    chunks = retriever.search(text, top_k)
+    try:
+        generator = Generator(client=Anthropic())
+    except Exception as e:
+        console.print(f"[red]Failed to initialize Claude client: {e}[/red]")
+        return
+
+    try:
+        chunks = retriever.search(text, top_k)
+    except CriticalError as e:
+        console.print(f"[red]Search failed: {e}[/red]")
+        return
+    except Exception as e:
+        console.print(f"[red]Search failed unexpectedly: {e}[/red]")
+        logger.exception("Search failed")
+        return
 
     if not chunks:
         console.print("[yellow]No relevant notes found.[/yellow]")
