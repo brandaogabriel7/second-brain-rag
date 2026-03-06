@@ -1,27 +1,15 @@
 import logging
 import time
-from dataclasses import dataclass
 from functools import wraps
 from typing import Iterator
 
 import httpx
 
-from ingest.chunker import Chunk
+from .models import ReadwiseHighlight
 
 logger = logging.getLogger(__name__)
 
 READWISE_BASE_URL = "https://readwise.io/api"
-
-
-@dataclass
-class Highlight:
-    id: str
-    text: str
-    title: str
-    author: str
-    category: str
-    tags: list[str]
-    readwise_url: str
 
 
 def retry_with_backoff(max_retries=5, default_backoff=1.0):
@@ -58,7 +46,7 @@ class ReadwiseClient:
     def __init__(self, token: str) -> None:
         self._token = token
 
-    def iter_highlight_pages(self) -> Iterator[list[Highlight]]:
+    def iter_highlight_pages(self) -> Iterator[list[ReadwiseHighlight]]:
         """Yield each page of highlights for progress tracking."""
         next_cursor = ""
         is_first_request = True
@@ -78,7 +66,7 @@ class ReadwiseClient:
     @retry_with_backoff()
     def _fetch_highlights_page(
         self, page_cursor: str
-    ) -> tuple[list[Highlight], str | None]:
+    ) -> tuple[list[ReadwiseHighlight], str | None]:
         params = {"pageCursor": page_cursor} if page_cursor else {}
         response = httpx.get(
             f"{READWISE_BASE_URL}/v2/export/",
@@ -101,7 +89,7 @@ class ReadwiseClient:
                 tags = [t for t in tags if t]
 
                 highlights.append(
-                    Highlight(
+                    ReadwiseHighlight(
                         id=str(highlight.get("id", "")),
                         text=highlight.get("text", ""),
                         title=book_title,
@@ -115,15 +103,3 @@ class ReadwiseClient:
         next_cursor = response_json.get("nextPageCursor")
 
         return highlights, next_cursor
-
-
-def highlight_to_chunk(highlight: Highlight) -> Chunk:
-    return Chunk(
-        text=highlight.text,
-        source=highlight.readwise_url,
-        title=highlight.title,
-        heading="",
-        tags=highlight.tags,
-        category=highlight.category,
-        author=highlight.author,
-    )

@@ -12,9 +12,10 @@ from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn
 from rich.table import Table
 
 from embeddings.embed import Embedder
-from ingest.chunker import Chunk, Chunker
+from ingest.chunker import Chunker, highlight_to_chunk
+from ingest.models import Chunk
 from ingest.obsidian import ObsidianReader
-from ingest.readwise import ReadwiseClient, highlight_to_chunk
+from ingest.readwise import ReadwiseClient
 from query.generator import Generator
 from query.retriever import Retriever
 from storage.vector_store import VectorStore

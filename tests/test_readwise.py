@@ -1,8 +1,9 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from ingest.readwise import ReadwiseClient, Highlight, highlight_to_chunk
-from ingest.chunker import Chunk
+from ingest.chunker import highlight_to_chunk
+from ingest.models import Chunk, ReadwiseHighlight
+from ingest.readwise import ReadwiseClient
 
 
 @pytest.fixture
@@ -95,7 +96,7 @@ class TestIterHighlightPages:
 
 class TestHighlightToChunk:
     def test_converts_highlight_to_chunk(self):
-        highlight = Highlight(
+        highlight = ReadwiseHighlight(
             id="abc123",
             text="This is the highlight text",
             title="Deep Work",
@@ -115,7 +116,7 @@ class TestHighlightToChunk:
         assert chunk.tags == ["focus", "productivity"]
 
     def test_uses_readwise_url_as_source(self):
-        highlight = Highlight(
+        highlight = ReadwiseHighlight(
             id="xyz789",
             text="text",
             title="Title",
@@ -130,7 +131,7 @@ class TestHighlightToChunk:
         assert chunk.source == "https://readwise.io/open/xyz789"
 
     def test_sets_heading_to_empty_string(self):
-        highlight = Highlight(
+        highlight = ReadwiseHighlight(
             id="123",
             text="text",
             title="Title",
@@ -145,7 +146,7 @@ class TestHighlightToChunk:
         assert chunk.heading == ""
 
     def test_handles_none_author_and_category(self):
-        highlight = Highlight(
+        highlight = ReadwiseHighlight(
             id="123",
             text="text",
             title="Title",
