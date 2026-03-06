@@ -26,7 +26,7 @@ class TestEmbedQuery:
         mock_openai.embeddings.create.return_value = fake_embedding_response(
             [[0.1, 0.2, 0.3]]
         )
-        embedder = Embedder()
+        embedder = Embedder(model="text-embedding-3-small")
         result = embedder.embed_query("hello world")
         assert result == [0.1, 0.2, 0.3]
 
@@ -34,7 +34,7 @@ class TestEmbedQuery:
         mock_openai.embeddings.create.return_value = fake_embedding_response(
             [[0.0]]
         )
-        embedder = Embedder()
+        embedder = Embedder(model="text-embedding-3-small")
         embedder.embed_query("test")
         mock_openai.embeddings.create.assert_called_once_with(
             input=["test"], model="text-embedding-3-small"
@@ -46,7 +46,7 @@ class TestEmbedBatch:
         mock_openai.embeddings.create.return_value = fake_embedding_response(
             [[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]
         )
-        embedder = Embedder()
+        embedder = Embedder(model="text-embedding-3-small")
         result = embedder.embed_batch(["a", "b", "c"])
         assert len(result) == 3
         assert result[0] == [0.1, 0.2]
@@ -56,7 +56,7 @@ class TestEmbedBatch:
         mock_openai.embeddings.create.return_value = fake_embedding_response(
             [[1.0], [2.0], [3.0]]
         )
-        embedder = Embedder()
+        embedder = Embedder(model="text-embedding-3-small")
         result = embedder.embed_batch(["first", "second", "third"])
         assert result == [[1.0], [2.0], [3.0]]
 
@@ -64,12 +64,12 @@ class TestEmbedBatch:
         mock_openai.embeddings.create.return_value = fake_embedding_response(
             [[0.5, 0.5]]
         )
-        embedder = Embedder()
+        embedder = Embedder(model="text-embedding-3-small")
         result = embedder.embed_batch(["only one"])
         assert len(result) == 1
 
     def test_empty_batch(self, mock_openai):
-        embedder = Embedder()
+        embedder = Embedder(model="text-embedding-3-small")
         result = embedder.embed_batch([])
         assert result == []
         mock_openai.embeddings.create.assert_not_called()

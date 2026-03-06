@@ -39,7 +39,12 @@ class TestGenerateStream:
         return client
 
     def test_yields_text_chunks_and_sources(self, streaming_client):
-        generator = Generator(client=streaming_client)
+        generator = Generator(
+            client=streaming_client,
+            model="claude-sonnet-4-20250514",
+            max_tokens=1024,
+            system_prompt="Test prompt",
+        )
         chunks = [make_search_result(title="Test Note", source="notes/test.md", heading="Introduction", category="notes")]
 
         result = list(generator.generate_stream("Question?", chunks))
@@ -51,7 +56,12 @@ class TestGenerateStream:
         assert "- [1] Test Note | Introduction | notes | notes/test.md" in result[3]
 
     def test_calls_stream_method(self, streaming_client):
-        generator = Generator(client=streaming_client)
+        generator = Generator(
+            client=streaming_client,
+            model="claude-sonnet-4-20250514",
+            max_tokens=1024,
+            system_prompt="Test prompt",
+        )
         chunks = [make_search_result()]
 
         # Consume the generator

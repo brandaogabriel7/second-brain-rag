@@ -1,23 +1,21 @@
 import logging
-import os
+import sys
 from argparse import ArgumentParser
 
 from anthropic import Anthropic
-from dotenv import load_dotenv
 from rich.console import Console
 from rich.live import Live
 from rich.logging import RichHandler
 from rich.markdown import Markdown
 from rich.table import Table
 
+from config import Config, ConfigError, load_config
 from embeddings.embed import Embedder
 from errors import CriticalError
 from ingest.pipeline import ingest
 from query.generator import Generator
 from query.retriever import Retriever
 from storage.vector_store import VectorStore
-
-load_dotenv()
 
 console = Console()
 
@@ -33,20 +31,18 @@ def configure_logging(verbose: bool = False):
 
 logger = logging.getLogger(__name__)
 
-OBSIDIAN_VAULT_PATH = os.getenv("OBSIDIAN_VAULT_PATH", "")
-READWISE_TOKEN = os.getenv("READWISE_TOKEN", "")
 DEFAULT_TOP_K = 5
 
 
-def get_retriever():
-    embedder = Embedder()
-    store = VectorStore()
+def get_retriever(config: Config) -> Retriever:
+    embedder = Embedder(model=config.embedding_model)
+    store = VectorStore(path=config.chroma_path)
     return Retriever(embedder, store)
 
 
-def query(text: str, top_k: int):
+def query(config: Config, text: str, top_k: int):
     try:
-        retriever = get_retriever()
+        retriever = get_retriever(config)
     except Exception as e:
         console.print(f"[red]Failed to initialize search: {e}[/red]")
         return
@@ -75,15 +71,20 @@ def query(text: str, top_k: int):
     console.print(table)
 
 
-def ask(text: str, top_k: int):
+def ask(config: Config, text: str, top_k: int):
     try:
-        retriever = get_retriever()
+        retriever = get_retriever(config)
     except Exception as e:
         console.print(f"[red]Failed to initialize search: {e}[/red]")
         return
 
     try:
-        generator = Generator(client=Anthropic())
+        generator = Generator(
+            client=Anthropic(),
+            model=config.claude_model,
+            max_tokens=config.max_tokens,
+            system_prompt=config.system_prompt,
+        )
     except Exception as e:
         console.print(f"[red]Failed to initialize Claude client: {e}[/red]")
         return
@@ -112,12 +113,6 @@ def ask(text: str, top_k: int):
 
 
 def main():
-    if not OBSIDIAN_VAULT_PATH and not READWISE_TOKEN:
-        print(
-            "Please set either OBSIDIAN_VAULT_PATH or READWISE_TOKEN environment variable to ingest data."
-        )
-        return
-
     parser = ArgumentParser(description="Search through your Second Brain.")
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Show detailed logging"
@@ -137,12 +132,33 @@ def main():
     args = parser.parse_args()
     configure_logging(verbose=args.verbose)
 
+    try:
+        config = load_config()
+    except ConfigError as e:
+        console.print(f"[red]Configuration error: {e}[/red]")
+        sys.exit(1)
+
     if args.command == "ingest":
-        ingest(console, OBSIDIAN_VAULT_PATH, READWISE_TOKEN)
+        if not config.obsidian_vault_path and not config.readwise_token:
+            console.print(
+                "[red]Please set either OBSIDIAN_VAULT_PATH or READWISE_TOKEN "
+                "environment variable to ingest data.[/red]"
+            )
+            sys.exit(1)
+
+        ingest(
+            console,
+            chroma_path=config.chroma_path,
+            embedding_model=config.embedding_model,
+            vault_path=config.obsidian_vault_path or "",
+            readwise_token=config.readwise_token or "",
+            request_delay=config.request_delay,
+            batch_size=config.batch_size,
+        )
     elif args.command == "query":
-        query(args.text, args.top_k)
+        query(config, args.text, args.top_k)
     elif args.command == "ask":
-        ask(args.text, args.top_k)
+        ask(config, args.text, args.top_k)
     else:
         parser.print_help()
 

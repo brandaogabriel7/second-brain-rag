@@ -21,8 +21,6 @@ from storage.vector_store import VectorStore
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_BATCH_SIZE = 100
-
 
 def ingest_obsidian(
     console: Console, vault_path: str, collector: ErrorCollector
@@ -67,10 +65,12 @@ def ingest_obsidian(
     return chunks
 
 
-def ingest_readwise(console: Console, token: str) -> list[Chunk]:
+def ingest_readwise(
+    console: Console, token: str, request_delay: float
+) -> list[Chunk]:
     """Fetch all highlights from Readwise and convert to chunks."""
     console.print("[bold]Readwise[/bold]")
-    client = ReadwiseClient(token)
+    client = ReadwiseClient(token, request_delay=request_delay)
 
     logger.info("Fetching highlights from Readwise API...")
     highlights = []
@@ -99,9 +99,12 @@ def ingest_readwise(console: Console, token: str) -> list[Chunk]:
 
 def ingest(
     console: Console,
+    chroma_path: str,
+    embedding_model: str,
     vault_path: str = "",
     readwise_token: str = "",
-    batch_size: int = DEFAULT_BATCH_SIZE,
+    request_delay: float = 3.0,
+    batch_size: int = 100,
 ) -> bool:
     """Run the full ingestion pipeline.
 
@@ -117,7 +120,7 @@ def ingest(
     console.print("[bold]Starting ingestion...[/bold]\n")
     collector = ErrorCollector()
 
-    store = VectorStore()
+    store = VectorStore(path=chroma_path)
     store.reset()
 
     chunks: list[Chunk] = []
@@ -140,7 +143,7 @@ def ingest(
     # === Readwise (API errors are critical for this source) ===
     if readwise_token:
         try:
-            readwise_chunks = ingest_readwise(console, readwise_token)
+            readwise_chunks = ingest_readwise(console, readwise_token, request_delay)
             chunks.extend(readwise_chunks)
         except CriticalError as e:
             console.print(f"[red]Readwise failed: {e}[/red]")
@@ -172,7 +175,7 @@ def ingest(
     console.print(f"  Processing {len(chunks)} chunks")
 
     logger.info(f"Embedding {len(chunks)} chunks in batches of {batch_size}")
-    embedder = Embedder()
+    embedder = Embedder(model=embedding_model)
 
     embedded_count = 0
     failed_batches = 0

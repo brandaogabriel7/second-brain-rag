@@ -81,12 +81,10 @@ def retry_with_backoff(max_retries=5, default_backoff=1.0):
     return decorator
 
 
-REQUEST_DELAY = 3  # seconds between requests (20 req/min limit)
-
-
 class ReadwiseClient:
-    def __init__(self, token: str) -> None:
+    def __init__(self, token: str, request_delay: float = 3.0) -> None:
         self._token = token
+        self._request_delay = request_delay
 
     def iter_highlight_pages(self) -> Iterator[list[ReadwiseHighlight]]:
         """Yield each page of highlights for progress tracking.
@@ -101,7 +99,7 @@ class ReadwiseClient:
 
         while next_cursor is not None:
             if not is_first_request:
-                time.sleep(REQUEST_DELAY)
+                time.sleep(self._request_delay)
             is_first_request = False
 
             highlights_page, next_cursor = self._fetch_highlights_page(next_cursor)

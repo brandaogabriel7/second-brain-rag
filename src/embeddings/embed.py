@@ -10,14 +10,13 @@ from openai import (
 
 from errors import AuthenticationError, EmbeddingError, ServiceUnavailableError
 
-EMBEDDING_MODEL = "text-embedding-3-small"
-
 logger = logging.getLogger(__name__)
 
 
 class Embedder:
-    def __init__(self):
-        self._open_ai_client = OpenAI()
+    def __init__(self, model: str, client: OpenAI | None = None):
+        self._client = client if client else OpenAI()
+        self._model = model
 
     def embed_query(self, text: str) -> list[float]:
         """Generate an embedding vector for a single query string.
@@ -27,8 +26,8 @@ class Embedder:
             ServiceUnavailableError: If OpenAI API is unavailable.
         """
         try:
-            response = self._open_ai_client.embeddings.create(
-                input=[text], model=EMBEDDING_MODEL
+            response = self._client.embeddings.create(
+                input=[text], model=self._model
             )
             return response.data[0].embedding
         except OpenAIAuthError as e:
@@ -54,8 +53,8 @@ class Embedder:
 
         logger.debug(f"Embedding batch of {len(texts)} texts")
         try:
-            response = self._open_ai_client.embeddings.create(
-                input=texts, model=EMBEDDING_MODEL
+            response = self._client.embeddings.create(
+                input=texts, model=self._model
             )
             return [embedding.embedding for embedding in response.data]
         except OpenAIAuthError as e:

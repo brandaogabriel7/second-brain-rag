@@ -1,5 +1,4 @@
 import logging
-from pathlib import Path
 
 from chromadb import PersistentClient
 from chromadb.api import ClientAPI
@@ -8,13 +7,20 @@ from models import Chunk
 
 logger = logging.getLogger(__name__)
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-DEFAULT_CHROMA_PATH = str(PROJECT_ROOT / "data" / "chroma")
-
 
 class VectorStore:
-    def __init__(self, client: ClientAPI | None = None, collection_name: str = "notes"):
-        self._client = client if client else PersistentClient(path=DEFAULT_CHROMA_PATH)
+    def __init__(
+        self,
+        path: str | None = None,
+        client: ClientAPI | None = None,
+        collection_name: str = "notes",
+    ):
+        if client:
+            self._client = client
+        elif path:
+            self._client = PersistentClient(path=path)
+        else:
+            raise ValueError("Either 'path' or 'client' must be provided")
         self._collection = self._client.get_or_create_collection(
             name=collection_name, metadata={"hnsw:space": "cosine"}
         )

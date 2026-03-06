@@ -10,20 +10,19 @@ from anthropic import (
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """
-You are a helpful assistant. Your job is to answer questions based only on my personal notes.
-
-If there aren't any related notes, tell the user you couldn't find relevant context in the notes.
-
-Cite sources using [1], [2], etc. when referencing information from the notes.
-"""
-MODEL = "claude-sonnet-4-20250514"
-MAX_TOKENS = 1024
-
 
 class Generator:
-    def __init__(self, client: Anthropic) -> None:
+    def __init__(
+        self,
+        client: Anthropic,
+        model: str,
+        max_tokens: int,
+        system_prompt: str,
+    ) -> None:
         self._client = client
+        self._model = model
+        self._max_tokens = max_tokens
+        self._system_prompt = system_prompt
 
     def generate_stream(self, query: str, chunks: list[dict]) -> Iterator[str]:
         """Generate a streaming answer using Claude with the given context chunks.
@@ -34,9 +33,9 @@ class Generator:
         context = self._build_context(chunks)
         try:
             with self._client.messages.stream(
-                model=MODEL,
-                max_tokens=MAX_TOKENS,
-                system=SYSTEM_PROMPT,
+                model=self._model,
+                max_tokens=self._max_tokens,
+                system=self._system_prompt,
                 messages=[
                     {
                         "role": "user",
