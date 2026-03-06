@@ -15,6 +15,14 @@ A RAG (Retrieval-Augmented Generation) system that searches over Obsidian notes 
 - **LLM:** Claude (Anthropic)
 - **Data sources:** Obsidian vault, Readwise API
 
+## Cost
+
+This project uses paid APIs:
+- **OpenAI embeddings** — ~$0.02 per 1M tokens (very cheap, pennies for most vaults)
+- **Claude API** — ~$3/M input tokens, $15/M output tokens (each `ask` query costs ~$0.01-0.05 depending on context size)
+
+Ingestion is a one-time cost; queries are ongoing but inexpensive for personal use.
+
 ## Setup
 
 ```bash
@@ -37,7 +45,10 @@ OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 OBSIDIAN_VAULT_PATH=/path/to/your/vault
 READWISE_TOKEN=...  # optional
+CHROMA_PATH=data/chroma  # optional, defaults to data/chroma/
 ```
+
+The vector database is stored locally at `data/chroma/` by default. This directory is created automatically on first ingest.
 
 ## Usage
 
